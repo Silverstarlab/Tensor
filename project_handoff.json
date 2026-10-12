@@ -1,0 +1,858 @@
+{
+  "meta": {
+    "title": "구독형 크리에이터 플랫폼 + 이미지 워터마크 유출 추적: 작업 인수인계",
+    "created": "2026-10-10",
+    "language": "ko (사용자는 한국어로 대화함. 한국어로 답할 것)",
+    "purpose": "다른 채팅에서 이 프로젝트를 이어서 작업할 때, 지금까지의 결정·구현 상태·검증 결과·미완료 항목을 정확히 전달하기 위한 문서",
+    "how_to_use": [
+      "새 채팅에 이 JSON과 upload_guide의 시나리오별 코드 파일을 업로드한다.",
+      "starter_prompt_for_new_chat 의 문구를 첫 메시지로 붙여넣는다.",
+      "'verified'(실행해서 확인함)와 'unverified'(미확인)를 구분해서 읽을 것. 미확인 항목을 확인된 것처럼 말하지 말 것."
+    ]
+  },
+  "user_preferences": {
+    "language": "한국어",
+    "python_script_style": "사용자가 직접 실행할 파이썬 코드는 데이터를 파일로 읽지 말고 코드 안에 문자열로 넣어(data_results = \"\"\"...JSON lines...\"\"\") json.loads 로 파싱하는 형식을 선호함. 사용자 말: 그렇게 해야 에러가 안 뜸. (예: watermark_stats_check.py)",
+    "working_style": "결과의 확인과 검증을 요청함. 수치와 한계를 숨기지 말고, 검증한 것과 못 한 것을 구분해서 보고할 것.",
+    "environment": "사용자는 Google Colab에서 벤치마크 노트북을 실행하고 결과 파일(csv/jsonl)을 채팅에 업로드함. Kaggle 사용 가능(kagglehub).",
+    "service_content": "인물 사진과 동영상. 이미지가 주력이고 동영상도 필요하나 동영상 워터마킹은 아직 구현하지 않음."
+  },
+  "project": {
+    "goal": "구독형 결제 플랫폼(Fanvue/Patreon/OnlyFans 유형)의 콘텐츠 유출(leak)로 인한 손실을 줄이기 위해, 구독자별 비가시 워터마크로 유출 경로를 추적하고 증거를 남기는 자체 플랫폼을 만든다.",
+    "key_insight": "결제 영수증 토큰만으로는 유출 파일과 계정을 연결할 수 없다. 추적의 핵심은 구독자별 포렌식 워터마킹이고, 블록체인은 증거 보관(해시 앵커링)에만 쓴다.",
+    "decisions_confirmed_by_user": [
+      "자체 플랫폼을 구축한다(기존 플랫폼 연동 아님).",
+      "계정 생성 시 사용자용/크리에이터용 지갑이 생성된다.",
+      "포인트(코인) 충전은 코인을 사는 것처럼 사용자 지갑에 교환된다. 사용자와 크리에이터는 암호화폐를 느끼지 못한다.",
+      "코인은 시스템 밖으로 나가지 않는다(폐쇄형). 1코인 = 100원.",
+      "출금은 즉시가 아니며, 지역별 서비스 스테이블코인(예: KRWQ)을 정산 레일로 쓴다. 해외 호스팅이지만 원화 출금도 가능해야 한다.",
+      "대상 콘텐츠는 이미지(주력)와 동영상."
+    ],
+    "decisions_assumed_by_assistant_not_confirmed": [
+      "가격 정책: 원화 외 사용자는 '지역별 가격표'(권장안)로 가정. 사용자가 최종 확정하지 않음. src/pricing.ts 값(KR ₩100, US 7센트, JP ¥10)은 자리표시자.",
+      "지갑은 MVP에서 내부 원장 계정으로 구현(온체인 키는 트레저리/앵커링에만). 사용자가 온체인 지갑을 원하는지 확인되지 않음.",
+      "크리에이터에게는 스테이블코인이 아니라 현지 통화(원화 은행 입금)로 지급하고, 스테이블코인은 정산 레일로만 사용(오프램프 파트너 경유).",
+      "플랫폼 수수료 기본 10%(FEE_BPS=1000), 출금 보류 7일, 최소 출금 100코인, 구독 해지 시 일할 환불. 모두 조정 가능한 기본값."
+    ],
+    "regulatory_notes_as_of_mid_2026_reports_must_reverify": [
+      "한국 디지털자산기본법/스테이블코인 제도는 입법 과정에 있었고 확정 상태가 아니라는 보도가 있었음. 해외 발행 스테이블코인(USDT/USDC)의 국내 유통에는 한국 지점 설치가 논의됨.",
+      "KRWQ는 IQ와 Frax가 Base 위에 낸 역외 발행 원화 스테이블코인이며 출시 당시 한국 거주자 대상 제공이 제한된 것으로 알려짐. 원화 스테이블코인의 국제 활용에는 외국환거래법이 가장 큰 장애물로 지적됨.",
+      "폐쇄형 코인이라도 환급 가능한 선불 가치이므로 선불전자지급수단(전자금융거래법) 성격이 남을 수 있음. 해외 서버에서 한국 크리에이터에게 원화를 보내면 외국환거래법, 국내 이용자 대상 서비스 규제, 부가세, 원천징수가 걸릴 수 있음.",
+      "법률 자문 전에는 실제 결제/출금을 연결하지 말 것."
+    ],
+    "planning_document": {
+      "where": "Claude Docs 문서 '콘텐츠 유출 추적 시스템 상세 기획안' (artifact id 4fa014ea-44f9-4266-a968-e9548e838142). 다른 채팅에서는 접근이 안 될 수 있으므로 Markdown/Word로 내보내 업로드할 것.",
+      "sections": [
+        "1~14: 배경, 목표, 설계 원칙, 5계층 아키텍처, 모듈 상세, 블록체인 선택(자체 체인 X, 오프체인 DB + 해시 앵커링), 보상 메커니즘(v3), 위협 모델, 법률/규제, 로드맵, KPI, 리스크, 팀, 체크리스트",
+        "15: 지갑·포인트·스테이블코인 정산 구조(v0.2) - 하이브리드 원장 권장",
+        "16: 폐쇄형 코인, 지역별 정산, 해외 호스팅(v0.3) - 가격 정책 선택지, KRWQ 한계",
+        "17: 기본 아키텍처 명세(v0.4) - 서비스 6개, 데이터 모델, API 초안, 기술 스택, 보안 통제, 구축 순서",
+        "18: 배포까지의 로드맵(v0.5) - 단계 0~7, 배포 게이트, 환경 선택지"
+      ],
+      "not_updated_yet": "벤치마크 결과(97%, 속도 개선), 워터마킹 엔진의 실제 설계, 50장 실측 결과는 문서에 아직 반영하지 않았음."
+    }
+  },
+  "architecture": {
+    "layers": [
+      "클라이언트",
+      "전송·접근 제어(서명 URL, DRM)",
+      "애플리케이션(결제/구독/영수증)",
+      "포렌식(워터마크 삽입/추출/탐지)",
+      "증거·신뢰(매핑 DB, 해시 앵커링)"
+    ],
+    "coin_flow": "ISSUANCE → 사용자 지갑 → ESCROW → 크리에이터 지갑 / 플랫폼 수익. 출금: 크리에이터 지갑 → PAYOUT_HOLD → (오프램프 지급 후) ISSUANCE로 소각.",
+    "ledger_invariants": [
+      "모든 계정 잔액 합 = 0",
+      "각 거래의 항목 합 = 0",
+      "ESCROW 잔액 = 미정산 일정(total - released - refunded) 합",
+      "ledger 테이블은 DB 트리거로 UPDATE/DELETE 차단(정정은 반대 분개)"
+    ],
+    "tracing_flow": "열람 시 wm_id = HMAC(비밀키, receipt_id|content_id)의 앞 64비트 → deliveries 테이블에 기록 → 워터마크 삽입 후 단기 만료 서명 URL로 전달 → 유출본에서 신호를 읽어 deliveries의 wm_id 후보들과 대조(후보 목록 매칭, 통계적 판정) → 계정 특정 → 자동 제재 없이 OPEN 상태로 사람 검수.",
+    "fail_closed": "워터마크 엔진이 없거나 장애면 워터마크 없는 원본을 절대 내보내지 않고 503을 반환한다(크리에이터 본인 미리보기는 예외).",
+    "not_implemented": [
+      "머클 루트 온체인 앵커링",
+      "실제 PG 연동",
+      "실제 오프램프 파트너/환율(FX) 모듈(MockOffRamp만)",
+      "유출 크롤러",
+      "동영상 워터마킹/DRM",
+      "이메일 인증, 비밀번호 재설정, 토큰 폐기, 2FA"
+    ]
+  },
+  "backend": {
+    "stack": "TypeScript(Node 22, TS 7: tsconfig에 \"types\":[\"node\"] 필요), Fastify, PostgreSQL(개발/테스트는 PGlite=WASM Postgres), jose(JWT), scrypt 비밀번호 해시",
+    "modules": {
+      "src/ledger.ts": "이중기입 원장 코어(멱등성 키, 행 잠금, 잔액 검사, verifyLedger)",
+      "src/schema.ts + migrations.ts": "스키마와 버전 관리 마이그레이션(1 initial, 2 password_hash, 3 leak_report_analysis). 배포된 마이그레이션은 수정 금지",
+      "src/accounts.ts / auth.ts": "가입(지갑 자동 생성), scrypt, JWT HS256",
+      "src/charges.ts": "코인 충전(코인 수 기준 가격 계산), PG 웹훅 멱등 확정",
+      "src/subscriptions.ts": "구독, 에스크로 일할 정산(수수료 분리), 해지 환불, 만료/갱신, 동시 구독 충돌을 409로 변환",
+      "src/deliveries.ts": "열람 권한, wm_id(HMAC) 생성, 만료 서명 URL 발급/검증",
+      "src/media.ts": "원본 업로드(매직 바이트 검증), 서명 URL 검증 후 구독자별 워터마크 삽입 전달(캐시), 유출 이미지 분석",
+      "src/storage.ts": "객체 저장소 추상화, 경로 탈출 방지(isSafeKey), LocalFs/Memory 구현",
+      "src/watermark.ts": "WatermarkEngine 인터페이스(embed/analyze), HttpWatermarkEngine(파이썬 워커 호출), 테스트용 InsecureStubWatermark(보안 기능 아님)",
+      "src/leaks.ts": "wm_id → 구독자 역조회, 검수 상태",
+      "src/payouts.ts": "출금 신청(KYC 필수, 보류 기간), 정산 배치(재시도, MockOffRamp), 취소",
+      "src/db.ts, db-pg.ts, db-pglite.ts": "DB 추상화. DATABASE_URL이면 pg Pool(데드락/직렬화 실패 재시도), 없으면 PGlite",
+      "src/app.ts, server.ts": "REST API, 보안 헤더, 레이트 리밋, JWT 인증, 정상 종료"
+    },
+    "api": [
+      "POST /auth/signup, /auth/login (분당 10회 제한)",
+      "GET /me/wallet",
+      "POST /charges",
+      "POST /webhooks/pg/confirm (웹훅 시크릿)",
+      "POST /plans, /subscriptions, /subscriptions/:id/cancel",
+      "POST /contents (storageKey 안전 검증), POST /contents/upload (이미지 바이트)",
+      "GET /contents/:id/access (서명 URL만 반환, wmId 미노출)",
+      "GET /media/:id (서명 URL로 인증, 워터마크 삽입본 전달)",
+      "POST /payouts",
+      "관리자(x-admin-key): /admin/kyc, /admin/jobs/release-escrow, /admin/jobs/settle-payouts, /admin/payouts/:id/cancel, /admin/leaks, /admin/leaks/:id/review, /admin/leaks/analyze, /admin/ledger/verify, /internal/media/resolve",
+      "운영: GET /health, GET /ready"
+    ],
+    "production_guards": "NODE_ENV=production이면 DATABASE_URL 필수, 비밀키(WM_SECRET, URL_SECRET, ADMIN_KEY, WEBHOOK_SECRET, JWT_SECRET)는 32자 이상이고 'dev-'로 시작하면 시작 거부, WATERMARK_WORKER_URL/KEY 필수, OFFRAMP=mock 명시 필요(스테이징 전용).",
+    "deploy_artifacts": "Dockerfile, docker-compose.yml, .env.example, .github/workflows/ci.yml, tsconfig.build.json. Docker 이미지 빌드와 GitHub Actions는 이 환경에 Docker가 없어 실행해 보지 못함."
+  },
+  "watermark_engine": {
+    "location": "worker/wmark/core.py (엔진), attacks.py (벤치마크용 공격), worker/server.py (FastAPI 내부 워커), worker/colab_bench.py, worker/bench.py",
+    "algorithm": [
+      "키에서 직교하는 128x128 패턴(캐리어) 129개: 동기용 파일럿 1개(가중치 4) + 데이터 128개. 에너지가 0.03~0.16 cycles/px 대역에만 있음(JPEG/리사이즈에 살아남는 대역).",
+      "wm_id → HMAC으로 128비트 코드워드(키가 없으면 계산 불가). 비트 부호를 곱해 합친 타일 패턴을 이미지 전체에 반복해 휘도(Y)에 질감 마스크(국소 표준편차/6을 0.3~2.0으로 제한, 가우시안 평활)를 곱해 더함. strength 기본 2.5.",
+      "검출: 타일 주기로 스케일을 추정 → 표준 크기로 재표본화 → 타일로 접어 평균 → 에너지 동기(모든 캐리어 상관의 제곱합)로 이동량(크롭) 찾기 → 128개 소프트 값 → 서버의 후보 wm_id 코드워드와 내적한 z 점수로 판정.",
+      "판정 기준: 후보 수 x 가설 수로 보정한 family-wise 오탐 확률 1e-6 (z_threshold). 판정은 '후보 목록 매칭'이라 서버가 발급한 wm_id 목록(deliveries)이 필요하다. 블라인드 복호는 하지 않음.",
+      "삽입 최소 크기 192px. 출력은 PNG 또는 JPEG q95(subsampling 0)."
+    ],
+    "current_parameters": {
+      "class_attributes": {
+        "scale_keep": 3,
+        "scale_step": 0.015,
+        "prune_z": 7.0,
+        "sync_mode": "energy",
+        "search_carriers": 129,
+        "grid_tiles": 4,
+        "refine_tiles": 6,
+        "scan_points": 9,
+        "quick_z": 10.0,
+        "max_hyp": 3
+      },
+      "constants": {
+        "TILE": 128,
+        "N_BITS": 128,
+        "BAND": [
+          0.03,
+          0.16
+        ],
+        "MIN_SIDE": 192,
+        "pilot_weight": 4.0,
+        "default_strength": 2.5
+      },
+      "calibration_note": "quick_z=10(항등 시도가 이 이상이면 스케일 탐색 생략), prune_z=7.0은 손에 있는 사진 6장(skimage 내장)으로 측정한 소표본 값: 129캐리어 기준 무신호 스캔 최대 z 6.2(n=188), 유신호 최소 9.7. 실제 서비스 이미지로 재검증 필요."
+    },
+    "speed_work_done": [
+      "프로파일: 검출 시간의 96.7%가 scipy.ndimage.zoom(3차 스플라인)이었음.",
+      "PIL LANCZOS(F모드) + 실수 box 지정 재표본화로 교체(주기 반올림 오차 제거).",
+      "반해상도(타일 64) 탐색, 최종 읽기는 전해상도, 최상위 가설만 전해상도 polish, 무신호 후보 가지치기, 산 오르기 창을 6타일로 제한.",
+      "파일럿 단독 동기는 작은 이미지에서 우연 수준(z≈5)까지 떨어져 회귀를 일으킴 → 모든 캐리어 에너지 합 동기로 교체(신호 z 14~40 vs 무신호 최대 약 6).",
+      "회귀 원인 분리: 격자 탐색 창 4타일, 동기 캐리어 129, 국소 스캔 9점 세 가지가 모두 필요했음. (창 6타일 제한은 정확도에 영향 없음)"
+    ],
+    "worker_api": {
+      "GET /health": "생존 확인",
+      "POST /embed?wm_id=<16hex>&format=png|jpeg&quality=95&strength=": "본문=이미지 바이트, 응답=워터마크 삽입 이미지(EXIF 방향 적용 후 EXIF 제거)",
+      "POST /extract": "본문=이미지 → 소프트 상관값 목록(JSON)",
+      "POST /match": "{softs, candidates, top} → 후보별 z, detected, threshold, pValue",
+      "auth": "x-worker-key 헤더. 환경변수 WM_KEY(hex, 운영 필수 32바이트 이상), WORKER_API_KEY, WORKER_ENV=production, WM_STRENGTH",
+      "exposure": "내부 전용. 인터넷에 직접 노출 금지(WM_KEY가 새면 구독자 역추적/제거가 쉬워짐)."
+    }
+  },
+  "verified_results": {
+    "tests": {
+      "typescript": "24/24 통과(PGlite). 포함: 원장 불변식/동시성, 충전, 구독/에스크로, 출금, 인증, 마이그레이션, 미디어 전달(가짜 엔진), fail-closed, 유출 분석, 실제 파이썬 워커와의 결합 테스트(업로드→구독자별 전달→유출 분석으로 구독자 특정, 구독자 2명이 서로 바뀌지 않음).",
+      "typescript_real_postgres": "초기 17개 테스트는 실제 PostgreSQL 16에서도 통과(동시 구독 요청이 DB 내부 오류로 나가던 버그를 이 과정에서 발견/수정). 이후 추가된 media/worker 테스트 7개는 PGlite로만 실행함.",
+      "python": "12/12 통과(엔진 단위 테스트 + 서버 테스트).",
+      "note": "HTTP 테스트가 'storageKey s3://...' 때문에 한 번 실패했으나, 경로 탈출 방지(isSafeKey)가 정상 동작한 결과라 테스트 키를 originals/a.png로 고침."
+    },
+    "benchmark_builtin_7_images_latest_engine": {
+      "setup": "skimage 내장 사진 7장(astronaut, coffee, chelsea, rocket, motorcycle, camera(gray), moon(gray)), 34개 공격, 가짜 후보 20,000개, strength 2.5, family-wise 1e-6",
+      "supported_attacks_success": "208/215 = 97%",
+      "false_positives": "66회 시험(워터마크 없음/다른 키) 중 0건, 가짜 후보 최대 z 5.10 (기준 6.47)",
+      "total_time_s": 240,
+      "history": {
+        "v1_original(zoom)": "204/215 = 95%, 953s",
+        "pilot_sync_fast_version": "200/215 = 93%, 174s (회귀)",
+        "energy_sync_129_carriers_early": "209/215 = 97%, 373s",
+        "energy_sync_33_or_65_carriers": "199/215 = 93%, 258s (회귀)",
+        "final": "208/215 = 97%, 240s"
+      },
+      "failures_remaining": "작은 이미지(coffee 400x600)의 크롭, 강한 열화를 겹친 복합 공격(combo crop70+x0.6+jpeg60 4/7, combo x0.5+blur0.8+jpeg50 4/7). 회전·반전은 지원 안 함(0/7)."
+    },
+    "speed_32_case_comparison_old_vs_final": {
+      "setup": "2장 x 8공격 x (워터마크 있음/없음) = 32건, 같은 ID",
+      "marked_success": "구 15/16, 신 16/16",
+      "marked_time": "평균 11.1s → 1.6s (6.9배), 최대 68.9s → 4.1s",
+      "unmarked_time": "평균 22.4s → 2.0s (11.2배), 최대 81.2s → 2.7s",
+      "resize_x1_5_up": "64.3s → 3.3s (19.5배)",
+      "false_positives": "구 0/16, 신 0/16",
+      "env": "내 샌드박스 CPU 1코어, 768x1024 이미지(확대 공격 후 1536x1152). Colab과 다를 수 있음."
+    },
+    "easyportrait_50_images_older_engine": {
+      "setup": "Kaggle EasyPortrait JPEG 사진 50장 x 11개 공격(quick) = 550건, 장당 ID 1개, MAX_SIDE 1024, strength 2.5. 속도 개선 전 엔진(자기상관 + 파일럿 동기 + 국소 스캔 수정판)으로 측정함.",
+      "success": "550/550",
+      "image_level": "모든 공격을 통과한 이미지 50/50, 이미지 단위 Wilson 95% 하한 92.9% (행 단위 하한 99.3%는 같은 이미지 반복이라 과대평가)",
+      "z": "최소 8.57, 공격별 평균 10.53~10.93, 판정 기준 대비 여유 최소 1.64(중앙 4.13). 이론 상한 sqrt(128)=11.31 근처에서 포화(표준편차 약 0.27).",
+      "weakest": "작은 크롭(382x512 z=8.57, 230x512 z=9.61), 일부 WebP q60(z=9.05). 동기 z 5.1~6.9인 사례.",
+      "false_positives": "100건 중 0건, 최대 z 5.52 (기준 6.89~6.93)",
+      "quality": "PSNR 34.7~42.4 dB(평균 38.9), SSIM 평균 0.971(최소 0.956). 가장 낮은 PSNR 34.7dB 이미지는 파일명이 01a44469로 시작. 육안 확인은 아직 못 받음.",
+      "time": "검출 1건 평균 13.7s, p95 68s, 최대 276s. 총 125 CPU분. 확대 1.5배 평균 84.7s. (이후 속도 개선으로 크게 줄었으나 EasyPortrait에서 재측정은 안 함)",
+      "caveat": "모든 공격이 성공해 한계점(붕괴 지점)은 측정되지 못함. 더 가혹한 공격 필요."
+    },
+    "invalid_earlier_run": "첫 EasyPortrait 실행은 annotations의 PNG 마스크(값 0~8, 거의 검정)를 이미지로 뽑아 결과가 사진 평가가 아니었음(PSNR 51.7dB, WebP q60 0/10). 노트북에 마스크 경로 제외 + 사진 검사(check_photo)를 추가해 해결. 이 결과는 인용하지 말 것.",
+    "stats_review": {
+      "user_provided_analysis": "사용자가 110건(첫 10장)만으로 12개 통계 검정을 돌려 올림. 계산은 소수 4자리까지 정확히 재현됨.",
+      "issues": [
+        "50장 550건 중 10장(110건)만 사용함. 550건으로 재계산하면 수치가 달라짐.",
+        "관측이 독립이 아님(50장을 11회씩 반복 측정). 이미지를 블록으로 한 Friedman 검정이 적절(chi2=378.2).",
+        "z는 sqrt(128)=11.31 근처에서 포화되고 비정규(Shapiro W=0.738)라 t/ANOVA 전제가 깨짐.",
+        "none vs jpeg q40 '유의한 하락'은 평균 차이 0.039 z(95% 구간 0.022~0.060)로 실용적으로 무의미. p값만이 아니라 효과 크기를 함께 쓸 것.",
+        "z vs 6.9 t검정은 의미 없음(기준이 행마다 6.63~6.93). 중요한 것은 여유(z-thr, 최소 1.64).",
+        "카이제곱(attack x n_hyp)은 기대빈도 5 미만 셀이 40%이고 n_hyp가 코드 경로로 정해져 무의미. z vs 소요시간 상관도 개념적으로 무의미.",
+        "p=0.0000은 p<0.0001로 표기."
+      ],
+      "script": "watermark_stats_check.py (데이터 문자열 내장 방식, 550건 기준)"
+    },
+    "dark_image_experiment_synthetic": "손에 있는 사진을 인위적으로 아주 어둡게(평균 밝기 1~2) 만들면 strength 2.5에서 WebP q60이 실패(z -0.2~2.4)하고 JPEG q40이 경계선(z 7.3~7.6). strength 9에서 WebP q60도 성공(z≈10, PSNR 41~43dB). 실제 어두운 사진/동영상 장면에서는 검증하지 않음."
+  },
+  "known_issues_and_lessons": [
+    "동기 z의 봉우리가 정답 스케일 주위 +-0.5~0.75%로 매우 좁다. 주기 정밀도(실수 box 재표본화)가 검출 성패를 가른다.",
+    "ID에 따라 특정 스케일에서 실패하는 사례가 있었음(88bc539c9f4c3b79, resize x0.6). 국소 스캔(0.25% 간격)으로 수정, 30개 ID에서 0/30 실패. 단 장당 ID 1개로만 대규모 측정했으므로 ID 다양성 시험을 더 할 것.",
+    "회귀 방지 원칙: 속도 최적화 후에는 반드시 7장x34공격 벤치마크와 오탐 시험을 다시 돌려 이전 결과와 직접 비교할 것. 이 과정에서 두 번 회귀를 잡았음.",
+    "비교 전 수치 인용 주의: 이미지 표본이 달라지면 결과가 크게 달라진다(내장 사진 vs EasyPortrait, 마스크 vs 사진).",
+    "작은 면적(작은 크롭, 작은 이미지)에서는 신호 면적 부족으로 약하다. 신호는 이미지 면적에 비례(z는 비트 수와 무관하게 총 에너지에 의해 결정).",
+    "모든 공격이 성공하는 벤치마크는 한계를 못 보여준다. 더 가혹한 공격(JPEG q20, WebP q40, 0.4배 축소, 크롭 30%, 복합)으로 붕괴 지점을 찾을 것."
+  ],
+  "limitations": [
+    "회전, 원근 변환(화면을 카메라로 촬영), 좌우 반전은 지원하지 않음(측정상 실패).",
+    "여러 구독자가 이미지를 합치는 공모(collusion) 공격은 구현/측정하지 않음(Tardos 등 공모 내성 코드는 계획만).",
+    "동영상 워터마킹과 DRM은 미구현.",
+    "가시성 미확인: 가장 낮은 PSNR 34.7dB 이미지의 차이를 육안 확인하지 못함. 강도 스윕(2.5/3.5/5/7)과 육안 확인이 필요.",
+    "속도: 12MP 같은 큰 사진에서의 시간은 측정하지 않음(탐색은 창을 제한했으나 최종 읽기는 전해상도).",
+    "엔진 임계값은 내장 사진 6장 소표본으로 보정함."
+  ],
+  "unverified": [
+    "Colab 노트북의 Kaggle 다운로드 셀은 실제 Kaggle에서 실행해 확인하지 못함(샌드박스에서 접속 불가). 가짜 API로 분기만 검증. 사용자가 Colab에서 실행했을 때는 정상 동작했고 JPEG 50장을 받았음(첫 실행은 마스크를 받아 잘못됨 → 수정됨).",
+    "속도 개선된 새 엔진을 EasyPortrait 50장으로 다시 측정하지 않음(사용자가 Colab에서 새 노트북을 돌려 결과를 공유해야 함).",
+    "Docker 이미지 빌드와 GitHub Actions 워크플로 실행(YAML 문법만 확인).",
+    "media/worker 통합 테스트 7개의 실제 PostgreSQL 실행(PGlite만).",
+    "실제 PG 결제, 오프램프, 환율, 법률 검토 결과.",
+    "이 문서의 속도 수치는 샌드박스(CPU 1코어)에서 잰 값이라 Colab(2 vCPU)과 다를 수 있음."
+  ],
+  "todo_prioritized": [
+    {
+      "p": 1,
+      "task": "새 엔진 노트북을 Colab에서 EasyPortrait 50장으로 실행 → 결과(results.jsonl, fp.jsonl, watermark_*.csv) 업로드 → 속도와 정확도, 임계값(quick_z 10, prune_z 7.0) 재검증"
+    },
+    {
+      "p": 2,
+      "task": "가시성: 노트북 5번 셀의 '차이 x25' 육안 확인, 강도 스윕으로 PSNR/SSIM과 JPEG q40/WebP q60 성공률의 관계 확인, 어두운 장면용 적응형 강도 검토"
+    },
+    {
+      "p": 3,
+      "task": "더 가혹한 공격 세트(JPEG q20, WebP q40, 0.4배, 크롭 30%, 복합)로 붕괴 지점 탐색, ID 다양성 시험(장당 여러 ID)"
+    },
+    {
+      "p": 4,
+      "task": "큰 이미지(12MP급) 시간 측정과 최적화, 필요 시 서버 병렬 처리/큐"
+    },
+    {
+      "p": 5,
+      "task": "기획안 문서에 엔진 설계와 벤치마크 결과 반영, zip/README 갱신"
+    },
+    {
+      "p": 6,
+      "task": "프론트엔드(구독자 웹, 크리에이터 스튜디오, 관리자 검수 콘솔), 스테이징 배포(IaC, 관리형 DB, KMS, 모니터링, 백업)"
+    },
+    {
+      "p": 7,
+      "task": "인증 고도화(이메일 인증, 재설정, 토큰 폐기, 2FA), 실제 오프램프/FX/PG, 머클 앵커링, 유출 크롤러"
+    },
+    {
+      "p": 8,
+      "task": "동영상 워터마킹(이미지에서 충분한 성능을 확인한 뒤), 공모 내성 코드"
+    },
+    {
+      "p": 9,
+      "task": "법률 자문(선불전자지급수단, 외국환거래법, 가상자산/스테이블코인, 세금, 개인정보)"
+    },
+    {
+      "p": 10,
+      "task": "사용자 확인 필요: 가격 정책(코인 수 고정 vs 지역별 가격표), 크리에이터가 받는 형태(원화만 vs 스테이블코인 직접 수령), 온체인 지갑 필요 여부"
+    }
+  ],
+  "environment_notes": {
+    "sandbox": "Python 3.12, Node 22.22, TypeScript 7(tsconfig에 types:[node] 필요). Postgres 16은 apt로 설치했고 'pg_ctlcluster 16 main start'로 기동(현재는 내려가 있을 수 있음).",
+    "network": "허용 도메인 제한: pypi/npm/github 등만 가능. picsum.photos와 kaggle.com은 접속 불가(DNS 실패).",
+    "tool_limits": "명령 1건 300초 제한. 긴 작업은 'setsid nohup python3 -u ... > log 2>&1 < /dev/null &'로 분리 실행하고 폴링할 것. 'pkill -f 패턴'이 자기 셸을 죽일 수 있으니 PID 사용.",
+    "gotchas": [
+      "PGlite 테스트는 건당 약 4초(DB 초기화).",
+      "Colab 노트북은 build.py로 소스 파일을 %%writefile 셀로 임베드해 생성함. 생성 스크립트의 따옴표/이스케이프(\\n) 오류가 반복되어, 생성 후 모든 코드 셀을 ast.parse로 검사하고 로컬에서 끝까지 실행해 확인함.",
+      "한글 matplotlib 글리프가 Colab 기본 폰트에 없어 그래프 문자는 영어로 둠.",
+      "노트북은 EasyPortrait에서 annotations/mask 경로를 제외하고 images/ 폴더를 우선하며 check_photo(밝기 값 48개 이상, 평균 밝기 8~247)로 마스크/극단 이미지를 거름."
+    ]
+  },
+  "files": [
+    {
+      "path": "worker/wmark/core.py",
+      "bytes": 22199,
+      "purpose": "워터마크 엔진 본체(최신 고속판)",
+      "needed_for": [
+        "engine",
+        "colab",
+        "full"
+      ]
+    },
+    {
+      "path": "worker/wmark/attacks.py",
+      "bytes": 4472,
+      "purpose": "벤치마크용 공격/변환 모음",
+      "needed_for": [
+        "engine",
+        "colab",
+        "full"
+      ]
+    },
+    {
+      "path": "worker/wmark/__init__.py",
+      "bytes": 163,
+      "purpose": "패키지 초기화",
+      "needed_for": [
+        "engine",
+        "colab",
+        "full"
+      ]
+    },
+    {
+      "path": "worker/colab_bench.py",
+      "bytes": 7861,
+      "purpose": "Colab/로컬 공용 벤치마크 러너(병렬, 재개)",
+      "needed_for": [
+        "engine",
+        "colab",
+        "full"
+      ]
+    },
+    {
+      "path": "worker/bench.py",
+      "bytes": 6429,
+      "purpose": "내장 사진/이미지 폴더 벤치마크 CLI",
+      "needed_for": [
+        "engine",
+        "full"
+      ]
+    },
+    {
+      "path": "worker/server.py",
+      "bytes": 5666,
+      "purpose": "FastAPI 워터마크 워커(/embed /extract /match)",
+      "needed_for": [
+        "engine",
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "worker/requirements.txt",
+      "bytes": 126,
+      "purpose": "Python 의존성",
+      "needed_for": [
+        "engine",
+        "full"
+      ]
+    },
+    {
+      "path": "worker/fetch_test_images.py",
+      "bytes": 2259,
+      "purpose": "picsum.photos 이미지 다운로드 스크립트(미실행, 네트워크 허용 필요)",
+      "needed_for": [
+        "full"
+      ]
+    },
+    {
+      "path": "worker/tests/test_core.py",
+      "bytes": 3470,
+      "purpose": "엔진 단위 테스트(12개 중 일부)",
+      "needed_for": [
+        "engine",
+        "full"
+      ]
+    },
+    {
+      "path": "worker/tests/test_server.py",
+      "bytes": 2819,
+      "purpose": "워커 HTTP 테스트",
+      "needed_for": [
+        "engine",
+        "full"
+      ]
+    },
+    {
+      "path": "src/accounts.ts",
+      "bytes": 2609,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/app.ts",
+      "bytes": 9734,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/auth.ts",
+      "bytes": 3354,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/charges.ts",
+      "bytes": 2935,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/config.ts",
+      "bytes": 2938,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/context.ts",
+      "bytes": 129,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/db-pg.ts",
+      "bytes": 2141,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/db-pglite.ts",
+      "bytes": 1049,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/db.ts",
+      "bytes": 1215,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/deliveries.ts",
+      "bytes": 4787,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/errors.ts",
+      "bytes": 712,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/leaks.ts",
+      "bytes": 2105,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/ledger.ts",
+      "bytes": 5559,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/media.ts",
+      "bytes": 6072,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/migrate-cli.ts",
+      "bytes": 495,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/migrations.ts",
+      "bytes": 1594,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/payouts.ts",
+      "bytes": 5373,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/pricing.ts",
+      "bytes": 655,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/schema.ts",
+      "bytes": 6119,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/server.ts",
+      "bytes": 1863,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/storage.ts",
+      "bytes": 2401,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/subscriptions.ts",
+      "bytes": 7258,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "src/watermark.ts",
+      "bytes": 4204,
+      "purpose": "백엔드 소스",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "test/flow.test.ts",
+      "bytes": 10627,
+      "purpose": "TypeScript 테스트",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "test/helpers.ts",
+      "bytes": 434,
+      "purpose": "TypeScript 테스트",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "test/http.test.ts",
+      "bytes": 5967,
+      "purpose": "TypeScript 테스트",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "test/ledger.test.ts",
+      "bytes": 3886,
+      "purpose": "TypeScript 테스트",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "test/media.test.ts",
+      "bytes": 8919,
+      "purpose": "TypeScript 테스트",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "test/migrations.test.ts",
+      "bytes": 1322,
+      "purpose": "TypeScript 테스트",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "test/worker-integration.test.ts",
+      "bytes": 5309,
+      "purpose": "TypeScript 테스트",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "test/fixtures/photo.jpg",
+      "bytes": 99308,
+      "purpose": "결합 테스트용 샘플 사진",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "package.json",
+      "bytes": 728,
+      "purpose": "Node 의존성/스크립트",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 60488,
+      "purpose": "Node 잠금 파일",
+      "needed_for": [
+        "full"
+      ]
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 304,
+      "purpose": "TS 설정",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "tsconfig.build.json",
+      "bytes": 154,
+      "purpose": "빌드용 TS 설정",
+      "needed_for": [
+        "backend",
+        "full"
+      ]
+    },
+    {
+      "path": "Dockerfile",
+      "bytes": 697,
+      "purpose": "배포 이미지",
+      "needed_for": [
+        "full"
+      ]
+    },
+    {
+      "path": "docker-compose.yml",
+      "bytes": 538,
+      "purpose": "앱+Postgres",
+      "needed_for": [
+        "full"
+      ]
+    },
+    {
+      "path": ".env.example",
+      "bytes": 528,
+      "purpose": "환경변수 예시",
+      "needed_for": [
+        "full"
+      ]
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "bytes": 991,
+      "purpose": "CI(미실행)",
+      "needed_for": [
+        "full"
+      ]
+    },
+    {
+      "path": "README.md",
+      "bytes": 7114,
+      "purpose": "프로젝트 README",
+      "needed_for": [
+        "full"
+      ]
+    }
+  ],
+  "files_outside_project_zip": [
+    {
+      "path": "watermark_benchmark_colab.ipynb",
+      "purpose": "Colab 벤치마크 노트북(최신 엔진 임베드, Kaggle EasyPortrait 일부 다운로드, 마스크 필터, 화질/공격/오탐/저장)",
+      "needed_for": [
+        "colab"
+      ]
+    },
+    {
+      "path": "watermark_stats_check.py",
+      "purpose": "550건 통계 검증 스크립트(데이터 문자열 내장 형식, 170KB). 구 데이터(속도 개선 전)가 내장되어 있어 새 결과로 갱신 필요",
+      "needed_for": [
+        "stats"
+      ]
+    },
+    {
+      "path": "core_fast_v2.py",
+      "purpose": "worker/wmark/core.py 와 동일한 최신 엔진 복사본",
+      "needed_for": [
+        "engine"
+      ]
+    }
+  ],
+  "upload_guide": {
+    "recommended": {
+      "all_in_one": {
+        "when": "프로젝트 전체를 이어서 작업(가장 간단)",
+        "upload": [
+          "creator-platform-full.zip (1개) — 압축 안에 docs/project_handoff.json 포함"
+        ]
+      }
+    },
+    "scenarios": {
+      "A_watermark_engine_work": {
+        "when": "워터마크 엔진의 정확도/속도/강도 개선, 벤치마크",
+        "upload": [
+          "docs/project_handoff.json",
+          "worker/wmark/core.py",
+          "worker/wmark/attacks.py",
+          "worker/wmark/__init__.py",
+          "worker/colab_bench.py",
+          "worker/bench.py",
+          "worker/server.py",
+          "worker/requirements.txt"
+        ],
+        "optional": [
+          "worker/tests/test_core.py",
+          "worker/tests/test_server.py"
+        ]
+      },
+      "B_backend_ts_work": {
+        "when": "원장/구독/인증/미디어/배포 등 백엔드 작업",
+        "upload": [
+          "docs/project_handoff.json",
+          "package.json",
+          "tsconfig.json",
+          "tsconfig.build.json",
+          "src/*.ts (24개 파일)",
+          "test/*.ts (8개 파일)",
+          "test/fixtures/photo.jpg"
+        ],
+        "note": "node_modules는 올리지 말 것(npm install로 복원). 실제 워커 결합 테스트까지 하려면 시나리오 A의 worker 파일도 함께."
+      },
+      "C_colab_results_analysis": {
+        "when": "Colab에서 새로 돌린 벤치마크 결과 분석",
+        "upload": [
+          "docs/project_handoff.json",
+          "watermark_results.csv",
+          "results.jsonl",
+          "fp.jsonl",
+          "watermark_quality.csv"
+        ],
+        "note": "파일명에 (1) 같은 접미사가 붙어도 상관없음. 실행에 쓴 설정(STRENGTH, ATTACK_SET, N_IMAGES, N_DECOYS)도 메시지에 적어 줄 것."
+      },
+      "D_statistics": {
+        "when": "통계 검증/보고서",
+        "upload": [
+          "docs/project_handoff.json",
+          "results.jsonl",
+          "fp.jsonl"
+        ],
+        "note": "분석 코드는 사용자가 선호하는 형식(데이터 문자열 내장)으로 받으려면 그렇게 요청. watermark_stats_check.py 를 올리면 같은 형식을 이어갈 수 있음."
+      },
+      "E_planning_document": {
+        "when": "기획안 수정/법률·규제 검토",
+        "upload": [
+          "docs/project_handoff.json",
+          "기획안 Markdown 또는 Word(Claude Docs에서 내보내기)"
+        ]
+      },
+      "F_colab_notebook_fix": {
+        "when": "노트북 자체 수정",
+        "upload": [
+          "docs/project_handoff.json",
+          "watermark_benchmark_colab.ipynb"
+        ],
+        "note": "노트북에 엔진 소스가 임베드되어 있으므로 엔진을 바꾸면 노트북도 다시 생성해야 함."
+      }
+    },
+    "do_not_upload": [
+      "node_modules/",
+      "dist/",
+      "data/",
+      "__pycache__/",
+      "test_images/ (큰 이미지 폴더; 필요하면 몇 장만)",
+      "비밀키/.env 파일(실제 값)"
+    ]
+  },
+  "starter_prompt_for_new_chat": "첨부한 project_handoff.json 은 이전 채팅의 인수인계 문서입니다. 먼저 전체를 읽고, 'verified'와 'unverified'를 구분해서 현재 상태를 5줄 이내로 요약해 주세요. 그다음 todo_prioritized 의 1번부터 진행하되, 시작 전에 필요한 파일이 빠졌으면 알려 주세요. 규칙: (1) 한국어로 답한다. (2) 실행해서 확인하지 않은 것을 확인된 것처럼 말하지 않는다. (3) 코드를 수정하면 관련 테스트와 벤치마크를 다시 돌려 이전 결과와 직접 비교한다. (4) 내가 직접 실행할 파이썬 코드는 데이터를 코드 안에 문자열로 넣는 형식으로 쓴다."
+}
