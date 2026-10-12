@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tensor</title>
+<style>
+/* 팔레트: Pacific Blue 46B1C9 / Frosted Blue 84C0C6 / Ash Grey 9FB7B9, BCC1BA / Almond Cream F2E2D2 */
+:root{--pb:#46B1C9;--fb:#84C0C6;--ag:#9FB7B9;--ag2:#BCC1BA;--ac:#F2E2D2;
+--bg:var(--ac);--cd:#FAF2EA;--side:#E6EDEB;--tx:#16292e;--mu:#44585e;--bd:var(--ag);--on:#0f2a31;--bad:#9b2c1f;--ok:#17603a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f2429;--cd:#17343a;--side:#122b30;--tx:#F2E2D2;--mu:#BCC1BA;--bd:#3d6068;--bad:#f0a79c;--ok:#8fd9ae}}
+:root[data-theme="dark"]{--bg:#0f2429;--cd:#17343a;--side:#122b30;--tx:#F2E2D2;--mu:#BCC1BA;--bd:#3d6068;--bad:#f0a79c;--ok:#8fd9ae}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.65 "Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100vh}
+aside{background:var(--side);border-right:1px solid var(--bd);padding:20px 18px;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.brand{font-size:24px;font-weight:800;letter-spacing:-.6px;color:var(--tx)}.brand i{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--pb);margin-right:6px}
+.me{display:flex;gap:10px;align-items:center}.av{width:40px;height:40px;border-radius:50%;background:var(--fb);color:var(--on);display:grid;place-items:center;font-weight:800;flex:none}
+.wal{display:flex;border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:var(--cd)}.wal b{flex:1;padding:8px 12px}.wal button{border:0;background:var(--pb);color:var(--on);font:inherit;font-weight:700;padding:0 12px;cursor:pointer}
+.nav{display:flex;flex-direction:column;gap:2px}.nav button{border:0;background:none;color:var(--tx);text-align:left;padding:10px 12px;border-radius:10px;font:inherit;cursor:pointer}
+.nav button.on{background:var(--pb);color:var(--on);font-weight:700}
+.foot{margin-top:auto;font-size:12px;color:var(--mu);display:grid;grid-template-columns:1fr 1fr;gap:4px 8px}.foot a{color:var(--mu);cursor:pointer;text-decoration:underline}
+main{width:100%;max-width:780px;padding:20px 22px;margin:0 auto}
+h2{font-size:20px;margin:0 0 14px}h3{font-size:15px;margin:0 0 6px}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.mu{color:var(--mu);font-size:13px}.bad{color:var(--bad)}.ok{color:var(--ok)}
+.btn{background:var(--pb);color:var(--on);border:0;border-radius:10px;padding:9px 15px;font:inherit;font-weight:700;cursor:pointer;margin:2px 4px 2px 0}.btn.g{background:var(--fb)}.btn.w{width:100%;padding:13px}
+.btn:focus-visible,.nav button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--tx);outline-offset:2px}
+input,select{font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--ag);background:var(--cd);color:var(--tx);max-width:100%;margin:2px 4px 2px 0}
+label{display:block;margin:6px 0}
+.banner{height:150px;border-radius:14px;background:linear-gradient(120deg,var(--pb),var(--fb) 55%,var(--ag2))}
+.pav{width:84px;height:84px;font-size:32px;border:4px solid var(--bg);margin:-42px 0 0 18px}
+.cta{display:flex;justify-content:space-between;align-items:center;background:var(--pb);color:var(--on);border-radius:12px;padding:14px 16px;font-weight:700;border:0;width:100%;font-size:15px;cursor:pointer}
+.opt{display:flex;align-items:center;gap:12px;padding:14px 6px;border-bottom:1px solid var(--bd);cursor:pointer}.opt:last-child{border:0}.opt input{accent-color:var(--pb);width:18px;height:18px}.opt b{flex:1}
+.row{display:flex;justify-content:space-between;padding:6px 0}
+.lock{height:140px;display:grid;place-items:center;border-radius:12px;background:var(--side);color:var(--mu);text-align:center;padding:12px}
+img.v{max-width:100%;border-radius:10px;display:block;margin:8px 0}
+pre{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px;overflow-x:auto;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px;border-bottom:1px solid var(--bd);text-align:left}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--on);color:var(--ac);padding:9px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:9}
+.chip{display:inline-block;border:0;background:var(--side);color:var(--tx);border-radius:16px;padding:5px 12px;margin:0 6px 6px 0;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.chip.on{background:var(--pb);color:var(--on)}
+.badge{display:inline-block;background:var(--ac);color:var(--on);border:1px solid var(--pb);border-radius:6px;padding:0 8px;font-size:12px;font-weight:700}
+s.old,.old{text-decoration:line-through;opacity:.7;font-weight:400;margin-right:6px}
+.tabs{display:flex;border-bottom:2px solid var(--bd);margin:16px 0}.tabs button{flex:1;border:0;background:none;color:var(--mu);padding:11px;font:inherit;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}.tabs button.on{color:var(--tx);border-color:var(--pb)}
+.pr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pr .btn{margin:0}
+dialog{border:1px solid var(--bd);border-radius:16px;background:var(--cd);color:var(--tx);padding:22px;max-width:400px;width:92%}dialog::backdrop{background:rgba(15,36,41,.55)}
+@media(max-width:760px){body{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 14px}.nav{flex-direction:row;overflow-x:auto;max-width:100%}.nav button{white-space:nowrap}.foot{display:none}}
+</style></head>
+<body>
+<aside><div class="brand"><i></i>Tensor</div><div id="me"></div><div class="nav" id="nav"></div>
+<div class="foot"><a data-a="soon">서비스 이용약관</a><a data-a="soon">개인정보처리방침</a><a data-a="soon">청소년 보호정책</a><a data-a="soon">유해·불법촬영물 신고</a></div></aside>
+<main id="app"></main>
+<dialog id="dlg"><form id="af"><h2 id="dt">로그인</h2><label>이메일<br><input name="email" type="email" required autocomplete="email" style="width:100%"></label><label>비밀번호<br><input name="password" type="password" required minlength="8" autocomplete="current-password" style="width:100%"></label>
+<label class="mu">가입 유형 <select name="role"><option value="user">구독자</option><option value="creator">크리에이터</option></select> 지역 <select name="region"><option value="KR">한국</option><option value="US">미국</option><option value="JP">일본</option></select></label>
+<button class="btn w" type="submit" data-m="login">로그인</button><button class="btn g w" type="submit" data-m="signup">가입하기</button><button class="btn w" type="button" data-a="dclose" style="background:none;border:1px solid var(--bd);color:var(--tx)">닫기</button>
+<p class="mu">가입 시 모든 이미지에 열람자별 추적 식별자가 삽입되는 것에 동의하게 됩니다. 크리에이터는 본인확인(KYC) 후 출금할 수 있습니다.</p></form></dialog>
+<div id="toast" role="status"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ss={get:k=>{try{return sessionStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{v==null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v)}catch{}}};
+const S={tok:ss.get('tok'),uid:ss.get('uid'),role:null,region:'KR',kyc:'NONE',tab:'explore',prof:null,ptab:'feed',cat:'',sel:100,charge:null,admin:'',timer:null,q:'',after:null,prices:{KR:{currency:'KRW',minorPerCoin:100}}};
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,3200)};
+async function api(p,o={}){const h={};if(S.tok)h.authorization='Bearer '+S.tok;if(o.admin)h['x-admin-key']=S.admin;if(o.hdr)Object.assign(h,o.hdr);
+ let body=o.raw;if(o.json!==undefined){h['content-type']='application/json';body=JSON.stringify(o.json)}
+ const r=await fetch(p,{method:o.m||(body!==undefined?'POST':'GET'),headers:h,body});const t=await r.text();let d;try{d=JSON.parse(t)}catch{d=t}
+ if(!r.ok)throw Object.assign(new Error((d&&d.message)||r.statusText),{code:d&&d.error,status:r.status});return d}
+const fail=e=>toast(e.status===503?'보호 정책상 전달이 중단되었습니다(워터마크 엔진/저장소 미연결): '+e.message:(e.code?e.code+': ':'')+e.message);
+const won=c=>(c*100).toLocaleString()+'원';
+const money=c=>{const p=S.prices[S.region]||S.prices.KR,m=c*p.minorPerCoin,z=p.currency==='USD';return new Intl.NumberFormat('ko-KR',{style:'currency',currency:p.currency}).format(z?m/100:m)};
+const ago=i=>{const m=Math.floor((Date.now()-new Date(i))/6e4);return m<1?'방금':m<60?m+'분 전':m<1440?Math.floor(m/60)+'시간 전':Math.floor(m/1440)+'일 전'};
+const ini=n=>esc((n||'T').slice(-4,-3)||'T');
+const NAV={user:[['feed','피드'],['explore','탐색'],['subs','멤버십'],['charge','코인 충전']],creator:[['studio','스튜디오'],['payout','정산·출금']],guest:[['explore','탐색']]};
+const AUTHED=new Set(['follow','unfollow','sub','buy','charge','confirm','cancel','plan','post','payout','view']);
+
+async function boot(){try{S.prices=await api('/prices')}catch{}
+ if(S.tok){try{const m=await api('/me');S.role=m.role;S.region=m.region;S.kyc=m.kycStatus}catch{out(true)}}
+ if(S.role==='creator'&&!['studio','payout','admin','profile','explore'].includes(S.tab))S.tab='studio';render()}
+async function render(){
+ const nav=(S.tok?NAV[S.role]:NAV.guest)||[];
+ $('#nav').innerHTML=nav.concat([['admin','운영']]).map(([k,n])=>`<button class="${S.tab===k||(S.tab==='profile'&&k==='explore')?'on':''}" data-a="tab" data-id="${k}">${n}</button>`).join('')+(S.tok?'<button data-a="out">로그아웃</button>':'<button class="on" data-a="login">로그인 / 가입</button>');
+ $('#me').innerHTML=S.tok?`<div class="me"><div class="av">${esc((S.role||'?')[0].toUpperCase())}</div><div><b>${S.role==='creator'?'크리에이터':'구독자'}</b><div class="mu">${esc(S.region)}</div></div></div><div class="wal" style="margin-top:12px"><b id="bal">…</b>${S.role==='user'?'<button data-a="tab" data-id="charge">충전하기</button>':''}</div>`:'<p class="mu">둘러보는 것은 로그인 없이 가능합니다. 팔로우, 구독, 구매 시 로그인이 필요합니다.</p>';
+ if(S.tok)api('/me/wallet').then(w=>{const b=$('#bal');if(b)b.textContent=w.balanceCoins+' 코인'}).catch(()=>{});
+ try{$('#app').innerHTML=await({explore,profile,feed,subs,charge,studio,payout,admin}[S.tab])()}catch(e){$('#app').innerHTML=`<div class="card bad">${esc(e.message)}</div>`;if(e.status===401)out()}
+}
+const need=(a,id)=>{S.after={a,id};$('#dt').textContent='로그인이 필요합니다';$('#dlg').showModal()};
+const postCard=p=>`<div class="card"><div class="me"><div class="av">${ini(p.name)}</div><div><b>${esc(p.name)}</b><div class="mu">${ago(p.createdAt)}${p.category?' · '+esc(p.category):''}${p.visibility==='PPV'?' · PPV':''}</div></div></div>`+
+ (p.locked?(p.visibility==='PPV'?`<div class="lock"><div>유료 콘텐츠입니다<br><button class="btn" data-a="buy" data-id="${esc(p.postId)}">${p.priceCoins}코인 (${money(p.priceCoins)})으로 구매</button></div></div>`:`<div class="lock"><div>멤버 전용 게시글입니다<br><button class="btn" data-a="prof" data-id="${esc(p.creatorId)}">프로필에서 구독하기</button></div></div>`)
+ :`<p style="white-space:pre-wrap">${esc(p.body)}</p>`+(p.contentId?`<button class="btn g" data-a="view" data-id="${esc(p.contentId)}">이미지 보기</button>`:''))+`</div>`;
+async function explore(){const cs=await api('/creators'),q=S.q.trim(),l=cs.filter(c=>!q||c.name.includes(q));
+ return`<h2>탐색</h2><input id="sq" placeholder="크리에이터 검색" value="${esc(S.q)}" style="width:100%;margin-bottom:12px"><h3>새로 열린 플랜</h3>`+(l.length?`<div class="grid">${l.map(c=>`<div class="card"><div class="av" style="width:56px;height:56px;font-size:22px">${ini(c.name)}</div><h3 style="margin-top:10px">${esc(c.name)}</h3><p class="mu">${c.periodDays}일 · ${c.priceCoins}코인 (${money(c.priceCoins)})</p>${c.discountBps?`<p><span class="badge">첫 달 ${c.discountBps/100}% 할인</span></p>`:''}<button class="btn w" data-a="prof" data-id="${esc(c.creatorId)}">프로필 보기</button></div>`).join('')}</div>`:'<div class="card">조건에 맞는 크리에이터가 없습니다. 크리에이터가 플랜을 만들면 여기에 표시됩니다.</div>')}
+async function feed(){const l=await api('/me/feed');return`<div id="gal"></div><h2>피드</h2>`+(l.length?l.map(postCard).join(''):'<div class="card">팔로우한 크리에이터의 게시글이 여기에 표시됩니다. 탐색에서 크리에이터를 팔로우해 보세요.</div>')}
+async function profile(){const c=await api('/creators/'+S.prof),q=S.ptab==='ppv'?'?tab=ppv':(S.cat?'?category='+encodeURIComponent(S.cat):''),l=await api('/creators/'+S.prof+'/posts'+q),pl=c.plan;
+ const own=S.tok&&S.uid===c.creatorId;
+ const cta=own?'':c.subscribed?'<div class="cta" style="background:var(--fb)"><span>구독 중</span><span>멤버 전용 게시글을 볼 수 있습니다</span></div>':pl?`<button class="cta" data-a="sub" data-id="${esc(pl.planId)}"><span>${pl.periodDays}일 구독하기</span><span>${pl.firstMonthPriceCoins!=null?`<span class="old">${pl.priceCoins}코인</span>첫 달 ${pl.firstMonthPriceCoins}코인 (${money(pl.firstMonthPriceCoins)})`:`${pl.priceCoins}코인 (${money(pl.priceCoins)})`}</span></button>`:'<div class="lock">열린 구독 플랜이 없습니다</div>';
+ return`<div id="gal"></div><div class="banner"></div><div class="av pav">${ini(c.name)}</div><div class="pr" style="justify-content:space-between"><div><h2 style="margin:8px 0 0">${esc(c.name)}</h2><p class="mu">@${esc(c.creatorId.slice(0,8))} · 팔로워 ${c.followers}</p></div>${own?'':`<button class="btn ${c.following?'g':''}" data-a="${c.following?'unfollow':'follow'}" data-id="${esc(c.creatorId)}">${c.following?'팔로우 중':'팔로우'}</button>`}</div>
+ <div style="margin-top:12px">${cta}</div>
+ <div class="tabs"><button class="${S.ptab==='feed'?'on':''}" data-a="ptab" data-id="feed">피드 ${c.counts.feed}</button><button class="${S.ptab==='ppv'?'on':''}" data-a="ptab" data-id="ppv">PPV ${c.counts.ppv}</button></div>`+
+ (S.ptab==='feed'&&c.categories.length?`<div><button class="chip ${S.cat?'':'on'}" data-a="cat" data-id="">전체 ${c.counts.feed}</button>${c.categories.map(k=>`<button class="chip ${S.cat===k.name?'on':''}" data-a="cat" data-id="${esc(k.name)}">${esc(k.name)} ${k.count}</button>`).join('')}</div>`:'')+(l.length?l.map(postCard).join(''):'<div class="card">게시글이 없습니다.</div>')}
+async function subs(){const l=await api('/me/subscriptions');return`<h2>멤버십</h2>`+(l.length?`<div class="card"><table><tr><th>크리에이터</th><th>상태</th><th>만료</th><th></th></tr>${l.map(s=>`<tr><td><a href="#" data-a="prof" data-id="${esc(s.creatorId)}">${esc(s.name)}</a></td><td>${esc(s.status)}</td><td>${esc(s.expiresAt.slice(0,10))}</td><td>${s.status==='ACTIVE'?`<button class="btn g" data-a="cancel" data-id="${esc(s.subscriptionId)}">해지(일할 환불)</button>`:''}</td></tr>`).join('')}</table></div>`:'<div class="card">가입한 멤버십이 없습니다. 탐색에서 크리에이터를 찾아보세요.</div>')}
+async function charge(){const P=[10,30,100,300,1000];
+ return`<h2>코인 충전</h2><div class="card"><h3>상품 선택</h3>${P.map(c=>`<label class="opt"><input type="radio" name="p" value="${c}" ${S.sel===c?'checked':''} data-a="pick" data-id="${c}"><b>${c} 코인</b><span>${money(c)}</span></label>`).join('')}</div>
+ <div class="card"><h3>결제 수단</h3><button class="btn g" disabled>카드 (결제사 연동 예정)</button><p class="mu">코인은 서비스 내부 단위로만 쓰이며 외부 전송은 지원하지 않습니다.</p></div>
+ <div class="card"><h3>전체 금액</h3><div class="row"><span>구매 금액</span><b>${money(S.sel)}</b></div><div class="row mu"><span>세금(부가세 등)</span><span>법률 검토 후 확정</span></div><button class="btn w" data-a="charge" data-id="${S.sel}">충전하기</button><div id="ch">${S.charge?chargeBox():''}</div></div>`}
+function chargeBox(){const c=S.charge;return`<p>충전 요청 완료: ${c.coins}코인 · ${c.amountMinor.toLocaleString()} ${esc(c.currency)}(최소 단위). 결제사 승인 후 반영됩니다.</p><details><summary class="mu">개발용: 결제 승인 시뮬레이션 (운영에서는 제거)</summary><input id="ws" type="password" placeholder="WEBHOOK_SECRET"><button class="btn g" data-a="confirm">승인 처리</button></details>`}
+async function studio(){let cs=[];try{cs=await api('/creators/'+S.uid+'/posts')}catch{}
+ return`<div id="gal"></div><h2>스튜디오</h2><div class="card"><h3>구독 플랜 만들기</h3><input id="pp" type="number" min="1" placeholder="가격(코인)"><input id="pd" type="number" min="1" value="30" placeholder="기간(일)"><label class="mu">첫 달 할인 <input id="pk" type="number" min="0" max="90" value="10" style="width:70px">%</label><button class="btn" data-a="plan">플랜 생성</button></div>
+ <div class="card"><h3>새 게시글</h3><textarea id="pb" rows="3" style="width:100%;font:inherit;padding:8px;border-radius:10px;border:1px solid var(--ag);background:var(--cd);color:var(--tx)" placeholder="내용"></textarea>
+ <div class="pr"><select id="pv"><option value="SUB">멤버 전용</option><option value="PPV">PPV(개별 구매)</option><option value="FREE">전체 공개(텍스트만)</option></select><input id="pcat" placeholder="카테고리(선택)" style="width:130px"><input id="ppc" type="number" min="1" placeholder="PPV 가격(코인)" style="width:140px"></div>
+ <input id="fi" type="file" accept="image/png,image/jpeg,image/webp"><p class="mu">이미지는 원본이 서버에만 저장되고, 열람자마다 워터마크가 삽입된 사본으로 전달됩니다. 전체 공개 글에는 이미지를 붙일 수 없습니다.</p><button class="btn" data-a="post">게시하기</button></div>
+ <h3>내 게시글 (${cs.length})</h3>${cs.map(postCard).join('')}`}
+async function payout(){const w=await api('/me/wallet');return`<h2>정산·출금</h2><div class="card"><p style="font-size:26px;margin:0"><b>${w.balanceCoins}</b> 코인 <span class="mu">(${won(w.balanceCoins)})</span></p><p class="mu">본인확인 상태: <b>${esc(S.kyc)}</b> (VERIFIED여야 출금 가능). 신청 후 보류 기간을 거쳐 일 단위 배치로 지급됩니다.</p><input id="pc" type="number" min="1" placeholder="코인 수"><button class="btn" data-a="payout">출금 신청</button></div>`}
+async function admin(){return`<h2>운영 콘솔</h2><div class="card"><label>관리자 키 <input id="ak" type="password" value="${esc(S.admin)}" autocomplete="off"></label><button class="btn g" data-a="ledger">원장 무결성 검증</button><button class="btn g" data-a="rel">에스크로 정산 실행</button><button class="btn g" data-a="settle">출금 정산 배치 실행</button><pre id="ao" hidden></pre></div>
+<div class="card"><h3>유출 의심 이미지 분석</h3><label>출처 URL <input id="lu" placeholder="https://..." style="width:100%"></label><input id="lf" type="file" accept="image/*"><button class="btn" data-a="analyze">분석</button><p class="mu">후보 wm_id와 대조하며, 임계값을 넘어도 자동 제재 없이 사람 검수로 넘깁니다.</p><div id="lr"></div></div>
+<div class="card"><h3>KYC 상태 변경</h3><input id="ku" placeholder="userId" style="width:100%"><select id="ks"><option>VERIFIED</option><option>PENDING</option><option>REJECTED</option><option>NONE</option></select><button class="btn" data-a="kyc">적용</button></div>`}
+
+function out(q){S.tok=S.uid=S.role=null;['tok','uid'].forEach(k=>ss.set(k,null));S.tab='explore';if(!q)render()}
+async function show(id){const g=await api('/contents/'+id+'/access');clearInterval(S.timer);window.scrollTo({top:0});
+ $('#gal').innerHTML=`<div class="card"><img class="v" id="im" alt="콘텐츠" src="${esc(g.url)}"><p class="mu">서명 URL 만료까지 <b id="cd"></b>초 ${g.owner?'· 본인 미리보기(워터마크 없음)':'· 이 이미지에는 열람자별 추적 식별자가 삽입되어 있습니다'}</p><button class="btn g" data-a="close">닫기</button></div>`;
+ const end=new Date(g.expiresAt).getTime(),tick=()=>{const s=Math.max(0,Math.ceil((end-Date.now())/1000)),e=$('#cd');if(e)e.textContent=s;if(s<=0){clearInterval(S.timer);const im=$('#im');if(im)im.remove();toast('서명 URL이 만료되었습니다. 다시 열람해 주세요')}};tick();S.timer=setInterval(tick,500);
+ $('#im').onerror=()=>toast('이미지를 불러오지 못했습니다(워터마크 워커/저장소 상태 확인)')}
+const ao=d=>{const e=$('#ao');e.hidden=false;e.textContent=JSON.stringify(d,null,2)},ak=()=>{S.admin=$('#ak').value};
+const up=async f=>(await api('/contents/upload',{raw:f,hdr:{'content-type':f.type||'application/octet-stream'}})).contentId;
+const A={tab:id=>{S.tab=id;render()},out,login:()=>{$('#dt').textContent='로그인';$('#dlg').showModal()},dclose:()=>$('#dlg').close(),
+ soon:()=>toast('준비 중입니다. 운영 전에 약관·정책 문서와 신고 접수 기능을 연결해야 합니다'),close:()=>{clearInterval(S.timer);$('#gal').innerHTML=''},
+ prof:id=>{S.prof=id;S.tab='profile';S.ptab='feed';S.cat='';render()},ptab:id=>{S.ptab=id;S.cat='';render()},cat:id=>{S.cat=id;render()},view:show,pick:id=>{S.sel=+id;render()},
+ follow:async id=>{await api('/creators/'+id+'/follow',{m:'POST'});toast('팔로우했습니다');render()},unfollow:async id=>{await api('/creators/'+id+'/unfollow',{m:'POST'});render()},
+ sub:async id=>{const r=await api('/subscriptions',{json:{planId:id}});toast('구독을 시작했습니다 ('+r.priceCoins+'코인)');render()},
+ buy:async id=>{const r=await api('/posts/'+id+'/purchase',{m:'POST'});toast('구매했습니다 ('+r.priceCoins+'코인)');render()},
+ charge:async id=>{S.charge=await api('/charges',{json:{coins:+id}});render()},
+ confirm:async()=>{await api('/webhooks/pg/confirm',{json:{chargeId:S.charge.chargeId,pgPaymentId:'dev_'+Date.now()},hdr:{'x-webhook-secret':$('#ws').value}});S.charge=null;toast('충전이 반영되었습니다');render()},
+ cancel:async id=>{const r=await api('/subscriptions/'+id+'/cancel',{m:'POST'});toast('해지했습니다. 환불 '+r.refundedCoins+'코인');render()},
+ plan:async()=>{await api('/plans',{json:{priceCoins:+$('#pp').value,periodDays:+$('#pd').value,firstMonthDiscountBps:Math.round(+$('#pk').value*100)}});toast('플랜을 만들었습니다');render()},
+ post:async()=>{const f=$('#fi').files[0],v=$('#pv').value,j={body:$('#pb').value,visibility:v,category:$('#pcat').value};if(v==='PPV')j.ppvPriceCoins=+$('#ppc').value;if(f)j.contentId=await up(f);await api('/posts',{json:j});toast('게시했습니다');render()},
+ payout:async()=>{const r=await api('/payouts',{json:{coins:+$('#pc').value}});toast(`출금 신청: ${r.coins}코인, 지급 예정 ${r.releaseAt.slice(0,10)} 이후`);render()},
+ ledger:async()=>{ak();ao(await api('/admin/ledger/verify',{admin:1}))},rel:async()=>{ak();ao(await api('/admin/jobs/release-escrow',{m:'POST',admin:1}))},settle:async()=>{ak();ao(await api('/admin/jobs/settle-payouts',{m:'POST',admin:1}))},
+ kyc:async()=>{ak();ao(await api('/admin/kyc',{json:{userId:$('#ku').value,status:$('#ks').value},admin:1}))},
+ analyze:async()=>{ak();const f=$('#lf').files[0];if(!f)return toast('이미지를 선택하세요');const r=await api('/admin/leaks/analyze?sourceUrl='+encodeURIComponent($('#lu').value||'manual'),{raw:f,hdr:{'content-type':f.type||'application/octet-stream'},admin:1});
+  $('#lr').innerHTML=`<pre>${esc(JSON.stringify(r,null,2))}</pre>`+(r.reportId?`<button class="btn" data-a="rv" data-id="${esc(r.reportId)}|CONFIRMED">검수 승인</button><button class="btn g" data-a="rv" data-id="${esc(r.reportId)}|DISMISSED">기각(이의 제기)</button>`:'')},
+ rv:async x=>{const[i,s]=x.split('|');await api('/admin/leaks/'+i+'/review',{json:{status:s},admin:1});toast('처리했습니다: '+s)}};
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]');if(!b||b.tagName==='INPUT')return;if(b.tagName==='A')e.preventDefault();const a=b.dataset.a,id=b.dataset.id;
+ if(!S.tok&&(AUTHED.has(a)||(a==='tab'&&['feed','subs','charge'].includes(id))))return need(a,id);
+ try{await A[a](id)}catch(x){fail(x)}});
+document.addEventListener('change',e=>{if(e.target.dataset.a==='pick')A.pick(e.target.dataset.id)});
+document.addEventListener('input',e=>{if(e.target.id==='sq'){S.q=e.target.value;clearTimeout(S.qt);S.qt=setTimeout(async()=>{const p=e.target.selectionStart;await render();const n=$('#sq');if(n){n.focus();n.setSelectionRange(p,p)}},250)}});
+document.addEventListener('submit',async e=>{if(e.target.id!=='af')return;e.preventDefault();const m=e.submitter?.dataset.m||'login',f=Object.fromEntries(new FormData(e.target));
+ try{const r=await api('/auth/'+m,{json:m==='login'?{email:f.email,password:f.password}:f});S.tok=r.token;S.uid=r.userId;ss.set('tok',S.tok);ss.set('uid',S.uid);$('#dlg').close();e.target.reset();
+  const a=S.after;S.after=null;await boot();if(a&&S.role==='user'){if(a.a==='tab')A.tab(a.id);else try{await A[a.a](a.id)}catch(x){fail(x)}}}catch(x){fail(x)}});
+boot();
+</script></body></html>
